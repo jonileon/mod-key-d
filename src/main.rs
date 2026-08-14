@@ -106,7 +106,7 @@ fn socket_server(rx: Receiver<ModifierState>) {
         println!("client connected");
 
         let response = format!(
-            "{{\"ctrl\":{},\"shift\":{},\"alt\":{},\"super\":{}}}\n",
+            "{{\"ctrl\":{},\"shift\":{},\"alt\":{},\"meta\":{}}}\n",
             last_state.ctrl,
             last_state.shift,
             last_state.alt,
@@ -120,7 +120,7 @@ fn socket_server(rx: Receiver<ModifierState>) {
             last_state = state.clone();
 
             let response = format!(
-                "{{\"ctrl\":{},\"shift\":{},\"alt\":{},\"super\":{}}}\n",
+                "{{\"ctrl\":{},\"shift\":{},\"alt\":{},\"meta\":{}}}\n",
                 state.ctrl,
                 state.shift,
                 state.alt,
