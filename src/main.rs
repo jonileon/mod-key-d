@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::fs::read_to_string;
 use std::sync::mpsc::{Sender, Receiver, channel};
 use std::thread;
 use std::path::Path;
@@ -6,7 +7,7 @@ use std::os::unix::net::UnixListener;
 
 use evdev::{Device, InputEventKind, Key};
 
-const KEYD_KEYBOARD_PATH: &str = "/dev/input/event15";
+const INPUT_DEVICE_PATHS: &str = "/proc/bus/input/devices";
 const SOCKET_PATH: &str = "/tmp/modifier.sock";
 
 #[derive(Clone, Debug)]
@@ -19,19 +20,48 @@ struct ModifierState {
 
 
 fn main() {
+    let keyd_keyboard_path = get_keyboard_path();
+
     let (tx, rx) = channel::<ModifierState>();
 
     thread::spawn(move || {
         socket_server(rx);
     });
 
-    keyboard_daemon(tx);
+    keyboard_daemon(tx, &keyd_keyboard_path);
 }
 
+fn get_keyboard_path() -> String {
 
-fn keyboard_daemon(tx: Sender<ModifierState>) {
+    let file = read_to_string(INPUT_DEVICE_PATHS).expect(&format!("Failed to open devices on: {}", INPUT_DEVICE_PATHS));
+    let mut iter = file.lines();
+    let mut line = iter.next().expect("Failed to read devices");
+
+    while !line.contains("keyd virtual keyboard") {
+        line = iter.next().expect("Failed to read devices");
+    }
+
+    while !(line.starts_with("H")){
+        line = iter.next().expect("Couldnt find event information for keyd virtual keyboard");
+    }
+
+    let start = line.find("event").expect("Couldnt find evdev Handle for keyd virtual keyboard");
+    let mut end = start;
+    let chars: Vec<char> = line.chars().collect();
+    while end < line.len() {
+        if chars[end] == ' ' {
+            break
+        }
+        end = end + 1;
+    }
+
+    let event = line[start..end].to_string();
+    return format!("/dev/input/{}", event)
+}
+
+fn keyboard_daemon(tx: Sender<ModifierState>, path : &str) {
     let mut keyboard =
-        Device::open(KEYD_KEYBOARD_PATH)
+        Device::open(path)
         .expect("Failed to open keyboard");
 
 
